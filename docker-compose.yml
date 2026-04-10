@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  osp-discord-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: osp-discord-bot:latest
+    container_name: osp-discord-bot
+    restart: unless-stopped
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - DISCORD_CHANNEL_ID=${DISCORD_CHANNEL_ID}
+      - DISCORD_REPORT_CHANNEL_ID=${DISCORD_REPORT_CHANNEL_ID}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
