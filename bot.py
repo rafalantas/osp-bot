@@ -43,7 +43,7 @@ async def zlicz_wszystko():
     else:
         info = f"**Statystyki wyjazdow OSP ({CURRENT_YEAR}):**\n"
         for j, count in sorted(liczniki.items(), key=lambda x: -x[1]):
-            info += f"- {j}: {count}\n"
+            info += f"- {j.title()}: {count}\n"
     return info
 
 async def zlicz_wyjazdy_jednostki(nazwa_osp):
@@ -76,7 +76,7 @@ async def on_message(message):
     if message.channel.id == KANAL_ID_STAT and message.content.lower().startswith("!policz"):
         parts = message.content.strip().split(" ", 1)
         if len(parts) == 2:
-            argument = parts[1].strip()
+            argument = parts[1].strip().title()
 
             if argument.lower() == "wszystko":
                 print("Otrzymano komende !policz wszystko")
@@ -89,6 +89,7 @@ async def on_message(message):
                 print('Statystyki wszystkich jednostek wyslane.')
 
             else:
+                argument = argument.title()
                 print(f"Otrzymano komende dla: {argument}")
                 # Potwierdzenie odebrania komendy
                 await message.channel.send(
