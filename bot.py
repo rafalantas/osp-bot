@@ -77,16 +77,36 @@ async def on_message(message):
         parts = message.content.strip().split(" ", 1)
         if len(parts) == 2:
             argument = parts[1].strip()
+
             if argument.lower() == "wszystko":
                 print("Otrzymano komende !policz wszystko")
+                # Potwierdzenie odebrania komendy
+                await message.channel.send(
+                    f"⏳ Zliczam wyjazdy wszystkich jednostek OSP za {CURRENT_YEAR}... Moze to chwile zajac."
+                )
                 info = await zlicz_wszystko()
                 await message.channel.send(info)
                 print('Statystyki wszystkich jednostek wyslane.')
+
             else:
                 print(f"Otrzymano komende dla: {argument}")
+                # Potwierdzenie odebrania komendy
+                await message.channel.send(
+                    f"⏳ Zliczam wyjazdy jednostki **OSP {argument}** za {CURRENT_YEAR}..."
+                )
                 liczba = await zlicz_wyjazdy_jednostki(argument)
-                await message.channel.send(f"Liczba wyjazdow OSP {argument} ({CURRENT_YEAR}): {liczba}")
+                await message.channel.send(
+                    f"✅ Liczba wyjazdow OSP {argument} ({CURRENT_YEAR}): **{liczba}**"
+                )
                 print('Liczba wyjazdow wyslana.')
+
+        else:
+            # Uzytkownik wpisal samo "!policz" bez argumentu
+            await message.channel.send(
+                "❓ Uzycie komendy:\n"
+                "`!policz wszystko` — statystyki wszystkich jednostek\n"
+                "`!policz NAZWA` — liczba wyjazdow konkretnej jednostki, np. `!policz Warszawa`"
+            )
 
 if __name__ == "__main__":
     client.run(TOKEN)
