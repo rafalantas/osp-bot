@@ -15,13 +15,17 @@ GRUPA_CZAS = 60
 
 def parsuj_alarm(tresc):
     # Nowy format: "ALARM — OSP Nazwa\n 18:35:20"
-    pattern_nowy = r'ALARM\s*[—–-]\s*OSP\s+([\w\s\u00e0-\u017e]+?)\s*\n\s*(\d{2}:\d{2}:\d{2})'
+    pattern_nowy = r'ALARM\s*[—–-]\s*OSP\s+([\w\s\u00e0-\u017e]+?)\s*\n[^\d]*(\d{2}:\d{2}:\d{2})'
     # Stary format: "ALARM OSP Nazwa 18:35:20"
     pattern_stary = r'ALARM OSP ([\w\s\u00e0-\u017e]+?) (\d{2}:\d{2}:\d{2})'
     for pattern in (pattern_nowy, pattern_stary):
         match = re.search(pattern, tresc)
         if match:
-            return match.group(1).strip(), match.group(2)
+            nazwa = match.group(1).strip()
+            # Usun nadmiarowe "OSP " z poczatku nazwy (np. "OSP Nowokornino" -> "Nowokornino")
+            if nazwa.upper().startswith('OSP '):
+                nazwa = nazwa[4:].strip()
+            return nazwa, match.group(2)
     return None, None
 
 CURRENT_YEAR = datetime.now().year
