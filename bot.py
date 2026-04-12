@@ -13,22 +13,47 @@ client = discord.Client(intents=intents)
 
 GRUPA_CZAS = 60
 
-def parsuj_alarm(tresc):
-    # Nowy format: "ALARM — OSP Nazwa\n 18:35:20"
-    pattern_nowy = r'ALARM\s*[—–-]\s*OSP\s+([\w\s\u00e0-\u017e]+?)\s*\n[^\d]*(\d{2}:\d{2}:\d{2})'
-    # Stary format: "ALARM OSP Nazwa 18:35:20"
-    pattern_stary = r'ALARM OSP ([\w\s\u00e0-\u017e]+?) (\d{2}:\d{2}:\d{2})'
-    for pattern in (pattern_nowy, pattern_stary):
-        match = re.search(pattern, tresc)
-        if match:
-            nazwa = match.group(1).strip()
-            # Usun nadmiarowe "OSP " z poczatku nazwy (np. "OSP Nowokornino" -> "Nowokornino")
-            if nazwa.upper().startswith('OSP '):
-                nazwa = nazwa[4:].strip()
-            return nazwa, match.group(2)
+def parsuj_alarm_tekst(tresc):
+    """Parsuje zwykly tekst (stary format)."""
+    pattern = r'ALARM OSP ([\w\s\u00e0-\u017e]+?) (\d{2}:\d{2}:\d{2})'
+    match = re.search(pattern, tresc)
+    if match:
+        return match.group(1).strip(), match.group(2)
     return None, None
 
+def parsuj_alarm_embed(title, description):
+    """Parsuje embed: title='🚨 ALARM — OSP Nazwa', description='🕐 18:35:20'"""
+    if not title:
+        return None, None
+    # Sprawdz czy to alarm (nie TEST ani inny typ)
+    title_match = re.search(r'ALARM\s*[—–-]\s*OSP\s+([\w\s\u00e0-\u017e]+)', title)
+    if not title_match:
+        return None, None
+    nazwa = title_match.group(1).strip()
+    # Godzina jest w description
+    if not description:
+        return None, None
+    time_match = re.search(r'(\d{2}:\d{2}:\d{2})', description)
+    if not time_match:
+        return None, None
+    return nazwa, time_match.group(1)
+
+def parsuj_alarm(tresc):
+    """Zachowana dla kompatybilnosci ze starymi wiadomosciami tekstowymi."""
+    return parsuj_alarm_tekst(tresc)
+
 CURRENT_YEAR = datetime.now().year
+
+def wyciagnij_jednostke_i_czas(msg):
+    """Wyciaga jednostke i czas z wiadomosci tekstowej lub embeda."""
+    # Nowe wiadomosci jako embed
+    if msg.embeds:
+        for embed in msg.embeds:
+            jednostka, godzina = parsuj_alarm_embed(embed.title, embed.description)
+            if jednostka and godzina:
+                return jednostka, godzina
+    # Stare wiadomosci tekstowe
+    return parsuj_alarm_tekst(msg.content)
 
 async def zlicz_wszystko():
     wyjazdy_channel = client.get_channel(KANAL_ID_WYJAZDY)
@@ -37,7 +62,7 @@ async def zlicz_wszystko():
     async for msg in wyjazdy_channel.history(limit=None, oldest_first=True):
         if msg.created_at.year != CURRENT_YEAR:
             continue
-        jednostka, godzina_str = parsuj_alarm(msg.content)
+        jednostka, godzina_str = wyciagnij_jednostke_i_czas(msg)
         if jednostka and godzina_str:
             czas = msg.created_at.replace(tzinfo=None)
             if jednostka in ostatnie_wyjazdy:
@@ -61,7 +86,7 @@ async def zlicz_wyjazdy_jednostki(nazwa_osp):
     async for msg in wyjazdy_channel.history(limit=None, oldest_first=True):
         if msg.created_at.year != CURRENT_YEAR:
             continue
-        jednostka, godzina_str = parsuj_alarm(msg.content)
+        jednostka, godzina_str = wyciagnij_jednostke_i_czas(msg)
         if jednostka and godzina_str:
             if jednostka.lower() == nazwa_osp.lower():
                 czas = msg.created_at.replace(tzinfo=None)
