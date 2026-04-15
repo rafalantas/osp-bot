@@ -14,29 +14,32 @@ client = discord.Client(intents=intents)
 GRUPA_CZAS = 60
 
 def parsuj_alarm_tekst(tresc):
-    """Parsuje zwykly tekst (stary format)."""
-    pattern = r'ALARM OSP ([\w\s\u00e0-\u017e]+?) (\d{2}:\d{2}:\d{2})'
-    match = re.search(pattern, tresc)
+    """Parsuje zwykly tekst - stary i nowy format."""
+    # Stary format: "ALARM OSP Nazwa HH:MM:SS"
+    pattern_stary = r'ALARM OSP ([\w\s\u00e0-\u017e]+?) (\d{2}:\d{2}:\d{2})'
+    match = re.search(pattern_stary, tresc)
     if match:
         return match.group(1).strip(), match.group(2)
+
+    # Nowy format: "ALARM — OSP Nazwa\nDzis o HH:MM" lub "\n HH:MM:SS"
+    match_nazwa = re.search(r'ALARM\s*[—–-]\s*OSP\s+([\w\s\u00e0-\u017e]+?)(?:\n|$)', tresc)
+    match_czas = re.search(r'(?:Dzi[s\u015b] o |)(\d{2}:\d{2}(?::\d{2})?)', tresc)
+    if match_nazwa and match_czas:
+        return match_nazwa.group(1).strip(), match_czas.group(1)
+
     return None, None
 
-def parsuj_alarm_embed(title, description):
-    """Parsuje embed: title='🚨 ALARM — OSP Nazwa', description='🕐 18:35:20'"""
+def parsuj_alarm_embed(title, timestamp):
+    """Parsuje embed: title='🚨  ALARM — OSP Nazwa', timestamp=datetime (z embed.timestamp)."""
     if not title:
         return None, None
-    # Sprawdz czy to alarm (nie TEST ani inny typ)
     title_match = re.search(r'ALARM\s*[—–-]\s*OSP\s+([\w\s\u00e0-\u017e]+)', title)
     if not title_match:
         return None, None
     nazwa = title_match.group(1).strip()
-    # Godzina jest w description
-    if not description:
-        return None, None
-    time_match = re.search(r'(\d{2}:\d{2}:\d{2})', description)
-    if not time_match:
-        return None, None
-    return nazwa, time_match.group(1)
+    # Godzina pochodzi z embed.timestamp ustawionego przez skrypt bash
+    godzina = timestamp.strftime('%H:%M:%S') if timestamp else '00:00:00'
+    return nazwa, godzina
 
 def parsuj_alarm(tresc):
     """Zachowana dla kompatybilnosci ze starymi wiadomosciami tekstowymi."""
@@ -49,7 +52,7 @@ def wyciagnij_jednostke_i_czas(msg):
     # Nowe wiadomosci jako embed
     if msg.embeds:
         for embed in msg.embeds:
-            jednostka, godzina = parsuj_alarm_embed(embed.title, embed.description)
+            jednostka, godzina = parsuj_alarm_embed(embed.title, embed.timestamp)
             if jednostka and godzina:
                 return jednostka, godzina
     # Stare wiadomosci tekstowe
@@ -106,6 +109,10 @@ async def on_ready():
 async def on_message(message):
     if message.author.bot:
         return
+    # DEBUG - logowanie embedow (mozna usunac po sprawdzeniu)
+    if message.embeds:
+        for i, e in enumerate(message.embeds):
+            print(f"[EMBED {i}] title={e.title!r} | timestamp={e.timestamp!r} | description={e.description!r}")
     if message.channel.id == KANAL_ID_STAT and message.content.lower().startswith("!policz"):
         parts = message.content.strip().split(" ", 1)
         if len(parts) == 2:
